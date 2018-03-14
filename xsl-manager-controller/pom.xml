@@ -14,8 +14,8 @@
   <!-- 依赖管理 -->
 	<dependencies>
 		<dependency>
-			<groupId>com.taotao</groupId>
-			<artifactId>taotao-manager-service</artifactId>
+			<groupId>com.xsl</groupId>
+			<artifactId>xsl-manager-service</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
 		<!-- JSP相关 -->
