@@ -1,13 +1,13 @@
 package xsl.sso.service.impl;
 
-import static org.hamcrest.CoreMatchers.nullValue;
-
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.xsl.mapper.UserMapper;
@@ -16,6 +16,8 @@ import com.xsl.pojo.UserExample;
 import com.xsl.pojo.UserExample.Criteria;
 
 import xsl.common.pojo.XslResult;
+import xsl.common.utils.JsonUtils;
+import xsl.sso.dao.JedisClient;
 import xsl.sso.service.UserService;
 
 @Service
@@ -23,6 +25,12 @@ public class UserServiceImpl implements UserService {
 	
 	@Autowired
 	private UserMapper userMapper;
+	@Autowired
+	private JedisClient jedisClient;
+	@Value("${REDIS_USER_SESSION_KEY}")
+	private String REDIS_USER_SESSION_KEY;
+	@Value("${SSO_SESSION_EXPIRE}")
+	private Integer SSO_SESSION_EXPIRE;
 	
 	
 	@Override
@@ -78,15 +86,26 @@ public class UserServiceImpl implements UserService {
 		
 		user.setPassword(null);
 		
+		//把用户信息写入redis
+		jedisClient.set(REDIS_USER_SESSION_KEY + ":" + token, JsonUtils.objectToJson(user));
+		//设置session的过期时间
+		jedisClient.expire(REDIS_USER_SESSION_KEY + ":" + token, SSO_SESSION_EXPIRE);
+
 		return XslResult.ok(token);
 
 	}
 
 	@Override
 	public XslResult getUserByToken(String token) {
+		String json = jedisClient.get(REDIS_USER_SESSION_KEY+":"+token);
 		
+		if(StringUtils.isBlank(json)){
+			return XslResult.build(400, "此session已经过期，请重新登录");
+		}
 		
-		return null;
+		jedisClient.expire(REDIS_USER_SESSION_KEY+":"+token, SSO_SESSION_EXPIRE);
+		
+		return XslResult.ok(JsonUtils.jsonToPojo(json, User.class));
 	}
 
 }
